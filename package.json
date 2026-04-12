@@ -3,9 +3,11 @@
   "private": true,
   "scripts": {
     "dev": "bun --hot run server/index.ts",
-    "start": "bun run server/index.ts"
+    "start": "bun run server/index.ts",
+    "check": "biome check --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.11",
     "@types/bun": "latest",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3"
