@@ -1,4 +1,4 @@
-# trpc-fullstack
+# trpc-bun-fullstack
 
 Fullstack app with Bun, tRPC, and React.
 
