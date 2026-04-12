@@ -1,3 +1,6 @@
+import "@mantine/core/styles.css";
+
+import { Button, Center, MantineProvider, Stack, Title } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
@@ -19,22 +22,26 @@ function App() {
   );
 
   return (
-    <>
-      <h1>
-        {isFetching ? "Loading..." : error ? `Error: ${error.message}` : data}
-      </h1>
-      <button type="button" onClick={() => refetch()} disabled={isFetching}>
-        Reload
-      </button>
-    </>
+    <Center h="100vh">
+      <Stack align="center" gap="md">
+        <Title order={1}>
+          {isFetching ? "Loading..." : error ? `Error: ${error.message}` : data}
+        </Title>
+        <Button variant="light" onClick={() => refetch()} loading={isFetching}>
+          Reload
+        </Button>
+      </Stack>
+    </Center>
   );
 }
 
 const root = createRoot(document.getElementById("root")!);
 root.render(
-  <trpc.Provider client={trpcClient} queryClient={queryClient}>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </trpc.Provider>,
+  <MantineProvider defaultColorScheme="dark">
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </trpc.Provider>
+  </MantineProvider>,
 );
