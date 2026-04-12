@@ -18,3 +18,9 @@ Serves frontend and backend on `http://localhost:3000` with hot reloading.
 
 - Frontend: `/`
 - tRPC: `/trpc/*`
+
+## Production
+
+```sh
+bun start
+```
