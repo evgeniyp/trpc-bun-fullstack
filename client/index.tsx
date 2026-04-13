@@ -16,7 +16,7 @@ const trpcClient = createTRPCClient<AppRouter>({
 });
 
 function App() {
-  const { data, error, isFetching, refetch } = trpc.helloWorld.useQuery(
+  const { data, error, isFetching, refetch } = trpc.getUserCount.useQuery(
     undefined,
     { retry: false, refetchOnWindowFocus: false },
   );
@@ -25,7 +25,11 @@ function App() {
     <Center h="100vh">
       <Stack align="center" gap="md">
         <Title order={1}>
-          {isFetching ? "Loading..." : error ? `Error: ${error.message}` : data}
+          {isFetching
+            ? "Loading..."
+            : error
+              ? `Error: ${error.message}`
+              : `Users: ${data}`}
         </Title>
         <Button variant="light" onClick={() => refetch()} loading={isFetching}>
           Reload

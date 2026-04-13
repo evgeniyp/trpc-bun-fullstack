@@ -1,22 +1,28 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { count } from "drizzle-orm";
 import index from "../index.html";
+import { db } from "./db/index";
+import { users } from "./db/schema";
 
 const t = initTRPC.create();
 
-async function helloWorld() {
+async function getUserCount() {
   await Bun.sleep(500);
-  if (Math.random() < 0.5) {
+
+  if (Math.random() < 0.2) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Random server error!",
     });
   }
-  return "Hello World!";
+
+  const result = await db.select({ count: count() }).from(users);
+  return result[0]?.count;
 }
 
 export const appRouter = t.router({
-  helloWorld: t.procedure.query(helloWorld),
+  getUserCount: t.procedure.query(getUserCount),
 });
 
 export type AppRouter = typeof appRouter;
