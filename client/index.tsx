@@ -1,11 +1,12 @@
 import "@mantine/core/styles.css";
 
-import { Button, Center, MantineProvider, Stack, Title } from "@mantine/core";
+import { Badge, Button, Center, MantineProvider, Stack, Title } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { createRoot } from "react-dom/client";
 import type { AppRouter } from "../server/index";
+import { useConnection } from "./useConnection";
 
 export const trpc = createTRPCReact<AppRouter>();
 
@@ -15,6 +16,19 @@ const trpcClient = createTRPCClient<AppRouter>({
   links: [httpBatchLink({ url: "/trpc" })],
 });
 
+function ConnectionBadge() {
+  const online = useConnection();
+  return (
+    <Badge
+      color={online ? "green" : "red"}
+      variant="filled"
+      style={{ position: "fixed", top: 12, right: 12 }}
+    >
+      {online ? "Online" : "Offline"}
+    </Badge>
+  );
+}
+
 function App() {
   const { data, error, isFetching, refetch } = trpc.getUserCount.useQuery(
     undefined,
@@ -22,20 +36,23 @@ function App() {
   );
 
   return (
-    <Center h="100vh">
-      <Stack align="center" gap="md">
-        <Title order={1}>
-          {isFetching
-            ? "Loading..."
-            : error
-              ? `Error: ${error.message}`
-              : `Users: ${data}`}
-        </Title>
-        <Button variant="light" onClick={() => refetch()} loading={isFetching}>
-          Reload
-        </Button>
-      </Stack>
-    </Center>
+    <>
+      <ConnectionBadge />
+      <Center h="100vh">
+        <Stack align="center" gap="md">
+          <Title order={1}>
+            {isFetching
+              ? "Loading..."
+              : error
+                ? `Error: ${error.message}`
+                : `Users: ${data}`}
+          </Title>
+          <Button variant="light" onClick={() => refetch()} loading={isFetching}>
+            Reload
+          </Button>
+        </Stack>
+      </Center>
+    </>
   );
 }
 
