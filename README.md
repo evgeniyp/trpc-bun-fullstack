@@ -26,13 +26,21 @@ bun check
 ## Dev
 
 ```sh
-bun dev
+bun start
 ```
 
 Serves frontend and backend on `http://localhost:3000` with hot reloading.
 
 - Frontend: `/`
 - tRPC: `/trpc/*`
+
+## Docker
+
+```sh
+docker compose up
+```
+
+Same hot-reload setup. Source is volume-mounted so edits on the host reflect immediately. DB file (`local.db`) is bind-mounted from the project root. Migrations run automatically on startup.
 
 ## Database
 
@@ -43,10 +51,4 @@ Edit schema in `server/db/schema.ts`, then:
 ```sh
 bun db:generate  # generate migration
 bun db:migrate   # apply to local.db
-```
-
-## Production
-
-```sh
-bun start
 ```
