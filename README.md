@@ -23,10 +23,16 @@ bun install
 bun check
 ```
 
-## Dev
+## Run
 
+Prod mode with hot reload, no HMR:
 ```sh
 bun start
+```
+
+Dev mode with hot reload and HMR:
+```sh
+bun dev
 ```
 
 Serves frontend and backend on `http://localhost:3000` with hot reloading.

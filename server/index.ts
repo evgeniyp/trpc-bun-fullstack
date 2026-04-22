@@ -28,6 +28,8 @@ export const appRouter = t.router({
 
 export type AppRouter = typeof appRouter;
 
+const isDev = process.argv.includes("--dev");
+
 Bun.serve({
   routes: {
     "/": index,
@@ -51,7 +53,7 @@ Bun.serve({
       if (msg === "ping") ws.send("pong");
     },
   },
-  development: true,
+  development: isDev,
 });
 
 console.log("tRPC server running on http://localhost:3000");

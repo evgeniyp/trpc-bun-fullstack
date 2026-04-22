@@ -2,7 +2,8 @@
   "name": "trpc-bun-fullstack",
   "private": true,
   "scripts": {
-    "start": "bun --hot run server/index.ts",
+    "dev": "bun --watch run server/index.ts --dev",
+    "start": "bun --watch run server/index.ts",
     "check": "biome check --write --unsafe",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"

@@ -1,6 +1,13 @@
 import "@mantine/core/styles.css";
 
-import { Badge, Button, Center, MantineProvider, Stack, Title } from "@mantine/core";
+import {
+  Badge,
+  Button,
+  Center,
+  MantineProvider,
+  Stack,
+  Title,
+} from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
@@ -47,7 +54,11 @@ function App() {
                 ? `Error: ${error.message}`
                 : `Users: ${data}`}
           </Title>
-          <Button variant="light" onClick={() => refetch()} loading={isFetching}>
+          <Button
+            variant="light"
+            onClick={() => refetch()}
+            loading={isFetching}
+          >
             Reload
           </Button>
         </Stack>
