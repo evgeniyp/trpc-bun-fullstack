@@ -11,6 +11,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import type { AppRouter } from "../server/index";
 import { useConnection } from "./useConnection";
@@ -25,6 +26,16 @@ const trpcClient = createTRPCClient<AppRouter>({
 
 function ConnectionBadge() {
   const online = useConnection();
+
+  useEffect(() => {
+    if (online) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [online]);
+
   return (
     <Badge
       color={online ? "green" : "red"}
