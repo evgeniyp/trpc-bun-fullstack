@@ -4,17 +4,13 @@
   "scripts": {
     "dev": "bun --watch run server/index.ts --dev",
     "start": "bun --watch run server/index.ts",
-    "check": "biome check --write --unsafe",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "check": "biome check --write --unsafe"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
-    "@libsql/client": "latest",
     "@types/bun": "latest",
     "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "drizzle-kit": "^0.31.10"
+    "@types/react-dom": "^19.2.3"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -22,13 +18,7 @@
   "dependencies": {
     "@mantine/core": "^9.0.2",
     "@mantine/hooks": "^9.0.2",
-    "@tanstack/react-query": "^5.99.0",
-    "@trpc/client": "^11.16.0",
-    "@trpc/react-query": "^11.16.0",
-    "@trpc/server": "^11.16.0",
-    "drizzle-orm": "^0.45.2",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
-    "zod": "^4.3.6"
+    "react-dom": "^19.2.5"
   }
 }

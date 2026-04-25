@@ -1,2 +1,0 @@
-Переход на golang
-claude --resume 62dd5a54-1040-487b-8a67-8db3a6918568
