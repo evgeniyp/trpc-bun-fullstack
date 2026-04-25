@@ -8,7 +8,9 @@ interface PresetConfig {
   bitrate: number;
 }
 
-const PRESETS: Record<string, PresetConfig> = {
+type PresetKey = "voice" | "standard" | "high";
+
+const PRESETS: Record<PresetKey, PresetConfig> = {
   voice: {
     label: "Voice",
     description:
@@ -122,7 +124,7 @@ function useAudioRecorder() {
   }, []);
 
   const start = useCallback(
-    async (presetKey: string) => {
+    async (presetKey: PresetKey) => {
       const preset = PRESETS[presetKey];
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -154,7 +156,7 @@ function useAudioRecorder() {
           const blob = new Blob(chunksRef.current, {
             type: recorder.mimeType || "audio/webm",
           });
-          stream.getTracks().forEach((t) => t.stop());
+          stream.getTracks().forEach((t) => { t.stop(); });
           streamRef.current = null;
           setState((s) => ({ ...s, status: "stopped", blob }));
         };
@@ -209,12 +211,21 @@ function useAudioRecorder() {
   useEffect(
     () => () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current?.getTracks().forEach((t) => { t.stop(); });
     },
     [],
   );
 
-  return { ...state, start, pause, resume, stop, reset, download };
+  return {
+    ...state,
+    stream: streamRef.current,
+    start,
+    pause,
+    resume,
+    stop,
+    reset,
+    download,
+  };
 }
 
 function formatDuration(ms: number) {
@@ -241,19 +252,130 @@ const STATUS_COLORS: Record<RecorderStatus, string> = {
   stopped: "green",
 };
 
+const CANVAS_W = 320;
+const CANVAS_H = 80;
+const CANVAS_STYLE = { borderRadius: 8, border: "1px solid #373a40" } as const;
+
+function drawWaveform(
+  ctx: CanvasRenderingContext2D,
+  data: Uint8Array,
+  color: string,
+) {
+  ctx.fillStyle = "#141517";
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = color;
+  ctx.beginPath();
+  const sliceWidth = CANVAS_W / data.length;
+  let x = 0;
+  let first = true;
+  for (const sample of data) {
+    const y = (sample / 256) * CANVAS_H;
+    if (first) { ctx.moveTo(x, y); first = false; }
+    else ctx.lineTo(x, y);
+    x += sliceWidth;
+  }
+  ctx.lineTo(CANVAS_W, CANVAS_H / 2);
+  ctx.stroke();
+}
+
+function RecordingWaveform({ stream }: { stream: MediaStream }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const audioCtx = new AudioContext();
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    const source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let rafId: number;
+    const draw = () => {
+      rafId = requestAnimationFrame(draw);
+      analyser.getByteTimeDomainData(data);
+      drawWaveform(ctx, data, "#fa5252");
+    };
+    draw();
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      source.disconnect();
+      audioCtx.close();
+    };
+  }, [stream]);
+
+  return <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} style={CANVAS_STYLE} />;
+}
+
 function AudioPreview({ blob }: { blob: Blob }) {
   const [src, setSrc] = useState("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
   useEffect(() => {
     const url = URL.createObjectURL(blob);
     setSrc(url);
     return () => URL.revokeObjectURL(url);
   }, [blob]);
-  return src ? <audio controls src={src} /> : null;
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    const canvas = canvasRef.current;
+    if (!audio || !canvas || !src) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let audioCtx: AudioContext | null = null;
+    let rafId = 0;
+    let initialized = false;
+
+    const onPlay = () => {
+      if (!initialized) {
+        initialized = true;
+        audioCtx = new AudioContext();
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 2048;
+        const source = audioCtx.createMediaElementSource(audio);
+        source.connect(analyser);
+        source.connect(audioCtx.destination);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        const draw = () => {
+          rafId = requestAnimationFrame(draw);
+          analyser.getByteTimeDomainData(data);
+          drawWaveform(ctx, data, "#4dabf7");
+        };
+        draw();
+      }
+      audioCtx?.resume();
+    };
+
+    audio.addEventListener("play", onPlay);
+    return () => {
+      cancelAnimationFrame(rafId);
+      audio.removeEventListener("play", onPlay);
+      audioCtx?.close();
+    };
+  }, [src]);
+
+  if (!src) return null;
+  return (
+    <Stack gap="xs" align="center">
+      <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} style={CANVAS_STYLE} />
+      {/* biome-ignore lint: recorded audio has no caption track */}
+      <audio ref={audioRef} controls src={src} />
+    </Stack>
+  );
 }
 
 export function AudioRecorder() {
-  const [preset, setPreset] = useState("high");
-  const { status, blob, duration, start, pause, resume, stop, reset, download } =
+  const [preset, setPreset] = useState<PresetKey>("high");
+  const { status, blob, duration, stream, start, pause, resume, stop, reset, download } =
     useAudioRecorder();
 
   const active = status === "recording" || status === "paused";
@@ -264,7 +386,7 @@ export function AudioRecorder() {
         label="Quality"
         data={PRESET_SELECT_DATA}
         value={preset}
-        onChange={(v) => setPreset(v ?? "high")}
+        onChange={(v) => setPreset((v as PresetKey) ?? "high")}
         disabled={active}
         allowDeselect={false}
         w="100%"
@@ -272,6 +394,10 @@ export function AudioRecorder() {
       <Text size="sm" c="dimmed" ta="center" mih={40}>
         {PRESETS[preset].description}
       </Text>
+
+      {(status === "recording" || status === "paused") && stream && (
+        <RecordingWaveform stream={stream} />
+      )}
 
       <Group>
         <Badge color={STATUS_COLORS[status]} variant="filled" size="lg">
