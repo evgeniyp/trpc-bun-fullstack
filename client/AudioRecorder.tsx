@@ -1,5 +1,59 @@
-import { ActionIcon, Badge, Button, Group, Stack, Text } from "@mantine/core";
+import { Badge, Button, Group, Select, Stack, Text } from "@mantine/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+interface PresetConfig {
+  label: string;
+  description: string;
+  constraints: MediaTrackConstraints;
+  bitrate: number;
+}
+
+const PRESETS: Record<string, PresetConfig> = {
+  voice: {
+    label: "Voice",
+    description:
+      "Optimized for speech — low bitrate, mono, noise suppression on. Best for calls, dictation, and interviews. Smallest file size.",
+    constraints: {
+      sampleRate: 16000,
+      channelCount: 1,
+      noiseSuppression: true,
+      echoCancellation: true,
+      autoGainControl: true,
+    },
+    bitrate: 32000,
+  },
+  standard: {
+    label: "Standard",
+    description:
+      "Balanced quality for podcasts and general recordings. Mono, no processing, moderate bitrate. Good default for most use cases.",
+    constraints: {
+      sampleRate: 44100,
+      channelCount: 1,
+      noiseSuppression: false,
+      echoCancellation: false,
+      autoGainControl: false,
+    },
+    bitrate: 64000,
+  },
+  high: {
+    label: "High",
+    description:
+      "Full stereo at 48 kHz — studio-grade quality. Best for music, ambience, or archival recordings. Largest file size.",
+    constraints: {
+      sampleRate: 48000,
+      channelCount: 2,
+      noiseSuppression: false,
+      echoCancellation: false,
+      autoGainControl: false,
+    },
+    bitrate: 128000,
+  },
+};
+
+const PRESET_SELECT_DATA = Object.entries(PRESETS).map(([value, p]) => ({
+  value,
+  label: p.label,
+}));
 
 type RecorderStatus =
   | "idle"
@@ -34,11 +88,10 @@ function useAudioRecorder() {
     navigator.permissions
       .query({ name: "microphone" as PermissionName })
       .then((result) => {
-        if (result.state === "granted") {
+        if (result.state === "granted")
           setState((s) => ({ ...s, status: "ready" }));
-        } else if (result.state === "denied") {
+        else if (result.state === "denied")
           setState((s) => ({ ...s, status: "denied" }));
-        }
         result.onchange = () => {
           if (result.state === "granted")
             setState((s) => ({ ...s, status: "ready" }));
@@ -68,42 +121,53 @@ function useAudioRecorder() {
     accumulatedRef.current += Date.now() - startTimeRef.current;
   }, []);
 
-  const start = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      chunksRef.current = [];
-      accumulatedRef.current = 0;
-
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : MediaRecorder.isTypeSupported("audio/webm")
-          ? "audio/webm"
-          : "";
-
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-      mediaRecorderRef.current = recorder;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
+  const start = useCallback(
+    async (presetKey: string) => {
+      const preset = PRESETS[presetKey];
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: preset.constraints,
         });
-        stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        setState((s) => ({ ...s, status: "stopped", blob }));
-      };
+        streamRef.current = stream;
+        chunksRef.current = [];
+        accumulatedRef.current = 0;
 
-      recorder.start(100);
-      setState((s) => ({ ...s, status: "recording", blob: null }));
-      startTimer();
-    } catch {
-      setState((s) => ({ ...s, status: "denied" }));
-    }
-  }, [startTimer]);
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : MediaRecorder.isTypeSupported("audio/webm")
+            ? "audio/webm"
+            : "";
+
+        const recorder = new MediaRecorder(
+          stream,
+          mimeType
+            ? { mimeType, audioBitsPerSecond: preset.bitrate }
+            : { audioBitsPerSecond: preset.bitrate },
+        );
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+
+        recorder.onstop = () => {
+          const blob = new Blob(chunksRef.current, {
+            type: recorder.mimeType || "audio/webm",
+          });
+          stream.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+          setState((s) => ({ ...s, status: "stopped", blob }));
+        };
+
+        recorder.start(100);
+        setState((s) => ({ ...s, status: "recording", blob: null }));
+        startTimer();
+      } catch {
+        setState((s) => ({ ...s, status: "denied" }));
+      }
+    },
+    [startTimer],
+  );
 
   const pause = useCallback(() => {
     mediaRecorderRef.current?.pause();
@@ -188,11 +252,27 @@ function AudioPreview({ blob }: { blob: Blob }) {
 }
 
 export function AudioRecorder() {
+  const [preset, setPreset] = useState("high");
   const { status, blob, duration, start, pause, resume, stop, reset, download } =
     useAudioRecorder();
 
+  const active = status === "recording" || status === "paused";
+
   return (
-    <Stack align="center" gap="md">
+    <Stack align="center" gap="md" w={340}>
+      <Select
+        label="Quality"
+        data={PRESET_SELECT_DATA}
+        value={preset}
+        onChange={(v) => setPreset(v ?? "high")}
+        disabled={active}
+        allowDeselect={false}
+        w="100%"
+      />
+      <Text size="sm" c="dimmed" ta="center" mih={40}>
+        {PRESETS[preset].description}
+      </Text>
+
       <Group>
         <Badge color={STATUS_COLORS[status]} variant="filled" size="lg">
           {STATUS_LABELS[status]}
@@ -210,14 +290,14 @@ export function AudioRecorder() {
       </Group>
 
       {status === "denied" && (
-        <Text c="red" size="sm" ta="center" maw={320}>
+        <Text c="red" size="sm" ta="center">
           Microphone access denied. Enable it in browser settings and reload.
         </Text>
       )}
 
       <Group>
         {(status === "idle" || status === "ready") && (
-          <Button color="red" onClick={start}>
+          <Button color="red" onClick={() => start(preset)}>
             Record
           </Button>
         )}
