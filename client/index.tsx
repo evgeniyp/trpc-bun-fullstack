@@ -1,8 +1,9 @@
 import "@mantine/core/styles.css";
 
-import { Badge, Center, MantineProvider, Title } from "@mantine/core";
+import { Badge, Center, MantineProvider, Stack, Title } from "@mantine/core";
 import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { AudioRecorder } from "./AudioRecorder";
 import { useConnection } from "./useConnection";
 
 function ConnectionBadge() {
@@ -33,7 +34,10 @@ function App() {
     <>
       <ConnectionBadge />
       <Center h="100vh">
-        <Title order={1}>Hello World</Title>
+        <Stack align="center" gap="xl">
+          <Title order={1}>Audio Recorder</Title>
+          <AudioRecorder />
+        </Stack>
       </Center>
     </>
   );
