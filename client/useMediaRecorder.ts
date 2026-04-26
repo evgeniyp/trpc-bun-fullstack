@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { RECORDER_OPTIONS, RECORDING_TIMESLICE_MS } from "./audioConfig";
+import { MEMORY_BUDGET_BYTES, RECORDER_OPTIONS, RECORDING_TIMESLICE_MS } from "./audioConfig";
 
 export type Clip = {
   id: string;
@@ -52,6 +52,13 @@ export function useMediaRecorder(stream: MediaStream | null) {
       recorderRef.current = null;
     };
   }, [stream]);
+
+  useEffect(() => {
+    if (usedBytes >= MEMORY_BUDGET_BYTES) {
+      const state = recorderRef.current?.state;
+      if (state === "recording" || state === "paused") recorderRef.current?.stop();
+    }
+  }, [usedBytes]);
 
   // Revoke all blob URLs on unmount
   useEffect(() => {

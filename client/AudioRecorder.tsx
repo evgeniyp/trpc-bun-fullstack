@@ -1,4 +1,4 @@
-import { Button, Group, Menu, Modal, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Button, Group, Menu, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useRef, useState } from "react";
 import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
@@ -85,6 +85,7 @@ export function AudioRecorder() {
   if (!stream) return <Text c="dimmed">Requesting microphone…</Text>;
 
   const usedPct = (usedBytes / MEMORY_BUDGET_BYTES) * 100;
+  const isOverLimit = usedBytes >= MEMORY_BUDGET_BYTES;
   const remainingMs = ((MEMORY_BUDGET_BYTES - usedBytes) / RECORDING_BYTES_PER_SEC) * 1000;
   const pendingDeleteClip = clips.find((c) => c.id === pendingDeleteId);
   const playingElement = playingId ? (audioRefs.current.get(playingId) ?? null) : null;
@@ -134,8 +135,14 @@ export function AudioRecorder() {
         ))}
       </Stack>
 
+      {isOverLimit && (
+        <Alert color="red" title="Storage limit reached">
+          Delete clips to free space before recording again.
+        </Alert>
+      )}
+
       <Group>
-        <Button onClick={handleRecord} disabled={isRecording || !!playingId}>
+        <Button onClick={handleRecord} disabled={isRecording || !!playingId || isOverLimit}>
           Record
         </Button>
         <Button onClick={isPaused ? resume : pause} disabled={!isRecording}>
