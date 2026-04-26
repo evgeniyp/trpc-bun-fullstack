@@ -2,6 +2,7 @@ import { Button, Group, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useRef, useState } from "react";
 import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
+import { Waveform } from "./Waveform";
 import { MEMORY_BUDGET_BYTES } from "./audioConfig";
 import { useAudioStream } from "./useAudioStream";
 import { useMediaRecorder } from "./useMediaRecorder";
@@ -72,9 +73,14 @@ export function AudioRecorder() {
 
   const usedPct = (usedBytes / MEMORY_BUDGET_BYTES) * 100;
   const pendingDeleteClip = clips.find((c) => c.id === pendingDeleteId);
+  const playingElement = playingId ? (audioRefs.current.get(playingId) ?? null) : null;
+  const visualizerSource = isRecording ? stream : playingElement;
+  const visualizerColor = isRecording ? "crimson" : "steelblue";
 
   return (
     <Stack>
+      <Waveform source={visualizerSource} color={visualizerColor} paused={isPaused} />
+
       <Stack gap="xs">
         {clips.map((clip) => (
           <Group key={clip.id}>
