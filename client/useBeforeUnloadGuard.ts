@@ -3,7 +3,7 @@ import { useEffect } from "react";
 export function useBeforeUnloadGuard(active: boolean) {
   useEffect(() => {
     if (!active) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    const handler = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [active]);

@@ -44,25 +44,25 @@ async function encodeToMp3(blob: Blob, sampleRate: number): Promise<Blob> {
   for (let c = 0; c < channelCount; c++) {
     const channel = audioBuffer.getChannelData(c);
     for (let i = 0; i < length; i++) {
-      mono[i] += channel[i] / channelCount;
+      mono[i] = mono[i] + channel[i] / channelCount;
     }
   }
 
   const samples = floatToInt16(mono);
   const encoder = new Mp3Encoder(1, audioBuffer.sampleRate, MP3_BITRATE_KBPS);
-  const mp3Chunks: Int8Array[] = [];
+  const mp3Chunks: Uint8Array[] = [];
   const FRAME = 1152;
 
   for (let i = 0; i < samples.length; i += FRAME) {
     const chunk = samples.subarray(i, i + FRAME);
-    const encoded = encoder.encodeBuffer(chunk);
+    const encoded = encoder.encodeBuffer(chunk) as unknown as Uint8Array;
     if (encoded.length > 0) mp3Chunks.push(encoded);
   }
 
-  const flushed = encoder.flush();
+  const flushed = encoder.flush() as unknown as Uint8Array;
   if (flushed.length > 0) mp3Chunks.push(flushed);
 
-  return new Blob(mp3Chunks, { type: "audio/mpeg" });
+  return new Blob(mp3Chunks as BlobPart[], { type: "audio/mpeg" });
 }
 
 export async function saveClip(clip: Clip, format: "original" | "mp3") {

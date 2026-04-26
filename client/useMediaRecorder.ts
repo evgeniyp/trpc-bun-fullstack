@@ -30,8 +30,8 @@ export function useMediaRecorder(stream: MediaStream | null) {
       }
     };
 
-    recorder.onpause = () => { setIsPaused(true); };
-    recorder.onresume = () => { setIsPaused(false); };
+    recorder.onpause = () => setIsPaused(true);
+    recorder.onresume = () => setIsPaused(false);
 
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
@@ -39,7 +39,13 @@ export function useMediaRecorder(stream: MediaStream | null) {
       const url = URL.createObjectURL(blob);
       setClips((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), url, name: "Unnamed clip", size: blob.size, mimeType: recorder.mimeType },
+        {
+          id: crypto.randomUUID(),
+          url,
+          name: "Unnamed clip",
+          size: blob.size,
+          mimeType: recorder.mimeType,
+        },
       ]);
       setIsRecording(false);
       setIsPaused(false);
@@ -64,7 +70,9 @@ export function useMediaRecorder(stream: MediaStream | null) {
   useEffect(() => {
     return () => {
       setClips((prev) => {
-        prev.forEach((c) => { URL.revokeObjectURL(c.url); });
+        prev.forEach((c) => {
+          URL.revokeObjectURL(c.url);
+        });
         return prev;
       });
     };

@@ -19,7 +19,8 @@ export function useRecordingTimer(isRecording: boolean, isPaused: boolean): numb
     const id = setInterval(() => {
       setElapsed(accumulatedRef.current + (Date.now() - segmentStartRef.current));
     }, 100);
-    return () => { clearInterval(id); };
+
+    return () => clearInterval(id);
   }, [isRecording, isPaused]);
 
   return elapsed;

@@ -1,13 +1,13 @@
 import { Alert, Button, Group, Menu, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useRef, useState } from "react";
-import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
+import { MEMORY_BUDGET_BYTES, RECORDING_BYTES_PER_SEC } from "./audioConfig";
 import { saveClip } from "./saveClip";
+import { useAudioStream } from "./useAudioStream";
+import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
+import { useMediaRecorder } from "./useMediaRecorder";
 import { formatDuration, useRecordingTimer } from "./useRecordingTimer";
 import { Waveform } from "./Waveform";
-import { MEMORY_BUDGET_BYTES, RECORDING_BYTES_PER_SEC } from "./audioConfig";
-import { useAudioStream } from "./useAudioStream";
-import { useMediaRecorder } from "./useMediaRecorder";
 
 function mimeToLabel(mimeType: string): string {
   const base = mimeType.split(";")[0].trim();
@@ -77,7 +77,7 @@ export function AudioRecorder() {
   const elapsed = useRecordingTimer(isRecording, isPaused);
 
   const handleRecord = () => {
-    audioRefs.current.get(playingId!)?.pause();
+    if (playingId) audioRefs.current.get(playingId)?.pause();
     start();
   };
 
@@ -86,7 +86,10 @@ export function AudioRecorder() {
 
   const usedPct = (usedBytes / MEMORY_BUDGET_BYTES) * 100;
   const isOverLimit = usedBytes >= MEMORY_BUDGET_BYTES;
-  const remainingMs = Math.max(0, ((MEMORY_BUDGET_BYTES - usedBytes) / RECORDING_BYTES_PER_SEC) * 1000);
+  const remainingMs = Math.max(
+    0,
+    ((MEMORY_BUDGET_BYTES - usedBytes) / RECORDING_BYTES_PER_SEC) * 1000,
+  );
   const pendingDeleteClip = clips.find((c) => c.id === pendingDeleteId);
   const playingElement = playingId ? (audioRefs.current.get(playingId) ?? null) : null;
   const visualizerSource = isRecording ? stream : playingElement;
@@ -108,9 +111,11 @@ export function AudioRecorder() {
               src={clip.url}
               controls
               controlsList="nodownload"
-              onPlay={() => { setPlayingId(clip.id); }}
-              onPause={() => { setPlayingId(null); }}
-              onEnded={() => { setPlayingId(null); }}
+              onPlay={() => {
+                setPlayingId(clip.id);
+              }}
+              onPause={() => setPlayingId(null)}
+              onEnded={() => setPlayingId(null)}
               style={isRecording ? { pointerEvents: "none", opacity: 0.4 } : undefined}
             />
             <Text>{clip.name}</Text>
@@ -119,7 +124,9 @@ export function AudioRecorder() {
             </Button>
             <Menu position="bottom-end">
               <Menu.Target>
-                <Button size="xs" color="green">Save</Button>
+                <Button size="xs" color="green">
+                  Save
+                </Button>
               </Menu.Target>
               <Menu.Dropdown>
                 <Menu.Item onClick={() => saveClip(clip, "original")}>
@@ -159,26 +166,34 @@ export function AudioRecorder() {
       </Group>
 
       <Modal opened={deleteOpen} onClose={closeDelete} title="Delete clip" size="sm">
-        <Text mb="md">
-          Delete &ldquo;{pendingDeleteClip?.name}&rdquo;? This cannot be undone.
-        </Text>
+        <Text mb="md">Delete &ldquo;{pendingDeleteClip?.name}&rdquo;? This cannot be undone.</Text>
         <Group justify="flex-end">
-          <Button variant="default" onClick={closeDelete}>Cancel</Button>
-          <Button color="red" onClick={confirmDelete}>Delete</Button>
+          <Button variant="default" onClick={closeDelete}>
+            Cancel
+          </Button>
+          <Button color="red" onClick={confirmDelete}>
+            Delete
+          </Button>
         </Group>
       </Modal>
 
       <Modal opened={renameOpen} onClose={closeRename} title="Rename clip" size="sm">
         <TextInput
           value={renameValue}
-          onChange={(e) => { setRenameValue(e.currentTarget.value); }}
-          onKeyDown={(e) => { if (e.key === "Enter") confirmRename(); }}
+          onChange={(e) => setRenameValue(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") confirmRename();
+          }}
           data-autofocus
           mb="md"
         />
         <Group justify="flex-end">
-          <Button variant="default" onClick={closeRename}>Cancel</Button>
-          <Button onClick={confirmRename} disabled={!renameValue.trim()}>Rename</Button>
+          <Button variant="default" onClick={closeRename}>
+            Cancel
+          </Button>
+          <Button onClick={confirmRename} disabled={!renameValue.trim()}>
+            Rename
+          </Button>
         </Group>
       </Modal>
 
@@ -187,7 +202,8 @@ export function AudioRecorder() {
         c={remainingMs < 60_000 ? "red" : "dimmed"}
         style={{ position: "fixed", bottom: 8, right: 12 }}
       >
-        {formatBytes(usedBytes)} / {formatBytes(MEMORY_BUDGET_BYTES)} ({usedPct.toFixed(1)}%) — ~{formatDuration(remainingMs)} left
+        {formatBytes(usedBytes)} / {formatBytes(MEMORY_BUDGET_BYTES)} ({usedPct.toFixed(1)}%) — ~
+        {formatDuration(remainingMs)} left
       </Text>
     </Stack>
   );
