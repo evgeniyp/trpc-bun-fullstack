@@ -1,4 +1,4 @@
-import { Badge, Button, Group, Select, Stack, Text } from "@mantine/core";
+import { ActionIcon, Badge, Button, Group, Select, Slider, Stack, Text } from "@mantine/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface PresetConfig {
@@ -313,10 +313,24 @@ function RecordingWaveform({ stream }: { stream: MediaStream }) {
   return <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} style={CANVAS_STYLE} />;
 }
 
+function formatTime(s: number): string {
+  if (!isFinite(s) || s < 0) return "--:--";
+  const m = Math.floor(s / 60);
+  return `${String(m).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+}
+
 function AudioPreview({ blob }: { blob: Blob }) {
   const [src, setSrc] = useState("");
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [seekValue, setSeekValue] = useState(0);
+  const [seeking, setSeeking] = useState(false);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const rafRef = useRef<number>(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     const url = URL.createObjectURL(blob);
@@ -331,14 +345,24 @@ function AudioPreview({ blob }: { blob: Blob }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let audioCtx: AudioContext | null = null;
-    let rafId = 0;
+    // Draw flat idle line until playback starts
+    ctx.fillStyle = "#141517";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#4dabf7";
+    ctx.beginPath();
+    ctx.moveTo(0, CANVAS_H / 2);
+    ctx.lineTo(CANVAS_W, CANVAS_H / 2);
+    ctx.stroke();
+
     let initialized = false;
 
     const onPlay = () => {
+      setPlaying(true);
       if (!initialized) {
         initialized = true;
-        audioCtx = new AudioContext();
+        const audioCtx = new AudioContext();
+        audioCtxRef.current = audioCtx;
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 2048;
         const source = audioCtx.createMediaElementSource(audio);
@@ -346,29 +370,81 @@ function AudioPreview({ blob }: { blob: Blob }) {
         source.connect(audioCtx.destination);
         const data = new Uint8Array(analyser.frequencyBinCount);
         const draw = () => {
-          rafId = requestAnimationFrame(draw);
+          rafRef.current = requestAnimationFrame(draw);
           analyser.getByteTimeDomainData(data);
           drawWaveform(ctx, data, "#4dabf7");
         };
         draw();
       }
-      audioCtx?.resume();
+      audioCtxRef.current?.resume();
+    };
+
+    const onPause = () => setPlaying(false);
+    const onEnded = () => setPlaying(false);
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onDurationChange = () => {
+      if (isFinite(audio.duration)) setDuration(audio.duration);
     };
 
     audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("durationchange", onDurationChange);
+
     return () => {
-      cancelAnimationFrame(rafId);
+      cancelAnimationFrame(rafRef.current);
       audio.removeEventListener("play", onPlay);
-      audioCtx?.close();
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("durationchange", onDurationChange);
+      audioCtxRef.current?.close();
+      audioCtxRef.current = null;
     };
   }, [src]);
 
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) audio.play().catch(() => {});
+    else audio.pause();
+  };
+
+  const sliderPos = seeking ? seekValue : currentTime;
+
   if (!src) return null;
   return (
-    <Stack gap="xs" align="center">
+    <Stack gap="xs" align="stretch" w="100%">
       <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} style={CANVAS_STYLE} />
+      <Group gap="xs" align="center" wrap="nowrap">
+        <ActionIcon onClick={togglePlay} variant="filled" color="blue" size="md">
+          {playing ? "⏸" : "▶"}
+        </ActionIcon>
+        <Slider
+          flex={1}
+          min={0}
+          max={duration || 1}
+          value={sliderPos}
+          step={0.01}
+          label={formatTime}
+          size="sm"
+          disabled={!duration}
+          onChange={(v) => { setSeeking(true); setSeekValue(v); }}
+          onChangeEnd={(v) => {
+            const audio = audioRef.current;
+            if (audio) audio.currentTime = v;
+            setSeeking(false);
+          }}
+        />
+        <Text size="xs" ff="monospace" style={{ whiteSpace: "nowrap" }}>
+          {formatTime(sliderPos)} / {formatTime(duration)}
+        </Text>
+      </Group>
+      {/* preload="none": prevents browser from seeking to EOF to measure duration
+          on WebM blobs that lack duration metadata (MediaRecorder omits it) */}
       {/* biome-ignore lint: recorded audio has no caption track */}
-      <audio ref={audioRef} controls src={src} />
+      <audio ref={audioRef} src={src} preload="none" />
     </Stack>
   );
 }
