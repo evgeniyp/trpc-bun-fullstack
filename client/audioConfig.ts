@@ -23,8 +23,8 @@ export const RECORDER_OPTIONS: MediaRecorderOptions = {
 // 64 kbps mono MP3 is transparent for voice; drop to 48 kbps to reduce file size.
 export const MP3_BITRATE_KBPS = 64;
 
-// Conservative per-tab RAM budget for all recorded audio blobs in memory.
-export const MEMORY_BUDGET_BYTES = 1_073_741_824; // 1 GB
+// Memory budget sized for 4 hours at current bitrate: 4 * 3600 * RECORDING_BYTES_PER_SEC.
+export const MEMORY_BUDGET_BYTES = 4 * 3600 * RECORDING_BYTES_PER_SEC; // ~220 MB
 
 // How often MediaRecorder fires ondataavailable during recording.
 // Drives real-time usage updates; also determines chunk granularity.
