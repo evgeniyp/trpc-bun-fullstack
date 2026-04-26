@@ -1,23 +1,16 @@
-import { Alert, Button, Group, Menu, Modal, Stack, Text, TextInput } from "@mantine/core";
+import { Alert, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { MEMORY_BUDGET_BYTES, RECORDING_BYTES_PER_SEC } from "./audioConfig";
-import { saveClip } from "./saveClip";
+import { ClipList } from "./ClipList";
+import { DeleteClipModal } from "./DeleteClipModal";
+import { RecordControls } from "./RecordControls";
+import { RenameClipModal } from "./RenameClipModal";
 import { useAudioStream } from "./useAudioStream";
 import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
 import { useMediaRecorder } from "./useMediaRecorder";
 import { formatDuration, useRecordingTimer } from "./useRecordingTimer";
 import { Waveform } from "./Waveform";
-
-function mimeToLabel(mimeType: string): string {
-  const base = mimeType.split(";")[0].trim();
-  const labels: Record<string, string> = {
-    "audio/webm": "WebM",
-    "audio/mp4": "M4A",
-    "audio/ogg": "OGG",
-  };
-  return labels[base] ?? base;
-}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -49,29 +42,61 @@ export function AudioRecorder() {
 
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const refSettersRef = useRef<Map<string, (el: HTMLAudioElement | null) => void>>(new Map());
 
-  const requestDelete = (id: string) => {
-    setPendingDeleteId(id);
-    openDelete();
-  };
+  const setAudioRef = useCallback((id: string) => {
+    const cached = refSettersRef.current.get(id);
+    if (cached) return cached;
+    const setter = (el: HTMLAudioElement | null) => {
+      if (el) audioRefs.current.set(id, el);
+      else {
+        audioRefs.current.delete(id);
+        refSettersRef.current.delete(id);
+      }
+    };
+    refSettersRef.current.set(id, setter);
+    return setter;
+  }, []);
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      setPendingDeleteId(id);
+      openDelete();
+    },
+    [openDelete],
+  );
 
   const confirmDelete = () => {
-    if (pendingDeleteId) deleteClip(pendingDeleteId);
+    if (pendingDeleteId) {
+      audioRefs.current.get(pendingDeleteId)?.pause();
+      if (playingId === pendingDeleteId) setPlayingId(null);
+      deleteClip(pendingDeleteId);
+    }
     closeDelete();
     setPendingDeleteId(null);
   };
 
-  const requestRename = (id: string, currentName: string) => {
-    setPendingRenameId(id);
-    setRenameValue(currentName);
-    openRename();
-  };
+  const handleRename = useCallback(
+    (id: string, currentName: string) => {
+      setPendingRenameId(id);
+      setRenameValue(currentName);
+      openRename();
+    },
+    [openRename],
+  );
 
   const confirmRename = () => {
     if (pendingRenameId && renameValue.trim()) renameClip(pendingRenameId, renameValue.trim());
     closeRename();
     setPendingRenameId(null);
   };
+
+  const handlePlay = useCallback((id: string) => {
+    setPlayingId(id);
+  }, []);
+  const handlePauseOrEnd = useCallback(() => {
+    setPlayingId(null);
+  }, []);
 
   useBeforeUnloadGuard(isRecording || clips.length > 0);
   const elapsed = useRecordingTimer(isRecording, isPaused);
@@ -99,48 +124,15 @@ export function AudioRecorder() {
     <Stack>
       <Waveform source={visualizerSource} color={visualizerColor} paused={isPaused} />
 
-      <Stack gap="xs">
-        {clips.map((clip) => (
-          <Group key={clip.id}>
-            {/** biome-ignore lint/a11y/useMediaCaption: no captions unless this track is transcribed in BE */}
-            <audio
-              ref={(el) => {
-                if (el) audioRefs.current.set(clip.id, el);
-                else audioRefs.current.delete(clip.id);
-              }}
-              src={clip.url}
-              controls
-              controlsList="nodownload"
-              onPlay={() => {
-                setPlayingId(clip.id);
-              }}
-              onPause={() => setPlayingId(null)}
-              onEnded={() => setPlayingId(null)}
-              style={isRecording ? { pointerEvents: "none", opacity: 0.4 } : undefined}
-            />
-            <Text>{clip.name}</Text>
-            <Button size="xs" color="blue" onClick={() => requestRename(clip.id, clip.name)}>
-              Rename
-            </Button>
-            <Menu position="bottom-end">
-              <Menu.Target>
-                <Button size="xs" color="green">
-                  Save
-                </Button>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item onClick={() => saveClip(clip, "original")}>
-                  Original ({mimeToLabel(clip.mimeType)})
-                </Menu.Item>
-                <Menu.Item onClick={() => saveClip(clip, "mp3")}>MP3</Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-            <Button size="xs" color="red" onClick={() => requestDelete(clip.id)}>
-              Delete
-            </Button>
-          </Group>
-        ))}
-      </Stack>
+      <ClipList
+        clips={clips}
+        isRecording={isRecording}
+        setAudioRef={setAudioRef}
+        onPlay={handlePlay}
+        onPauseOrEnd={handlePauseOrEnd}
+        onRename={handleRename}
+        onDelete={handleDelete}
+      />
 
       {isOverLimit && (
         <Alert color="red" title="Storage limit reached">
@@ -148,54 +140,31 @@ export function AudioRecorder() {
         </Alert>
       )}
 
-      <Group>
-        <Button onClick={handleRecord} disabled={isRecording || !!playingId || isOverLimit}>
-          Record
-        </Button>
-        <Button onClick={isPaused ? resume : pause} disabled={!isRecording}>
-          {isPaused ? "Resume" : "Pause"}
-        </Button>
-        <Button onClick={stop} disabled={!isRecording}>
-          Stop
-        </Button>
-        {isRecording && (
-          <Text c={isPaused ? "dimmed" : "red"} ff="monospace">
-            {formatDuration(elapsed)}
-          </Text>
-        )}
-      </Group>
+      <RecordControls
+        isRecording={isRecording}
+        isPaused={isPaused}
+        isOverLimit={isOverLimit}
+        hasPlayback={!!playingId}
+        elapsed={elapsed}
+        onRecord={handleRecord}
+        onPauseResume={isPaused ? resume : pause}
+        onStop={stop}
+      />
 
-      <Modal opened={deleteOpen} onClose={closeDelete} title="Delete clip" size="sm">
-        <Text mb="md">Delete &ldquo;{pendingDeleteClip?.name}&rdquo;? This cannot be undone.</Text>
-        <Group justify="flex-end">
-          <Button variant="default" onClick={closeDelete}>
-            Cancel
-          </Button>
-          <Button color="red" onClick={confirmDelete}>
-            Delete
-          </Button>
-        </Group>
-      </Modal>
+      <DeleteClipModal
+        opened={deleteOpen}
+        clipName={pendingDeleteClip?.name}
+        onClose={closeDelete}
+        onConfirm={confirmDelete}
+      />
 
-      <Modal opened={renameOpen} onClose={closeRename} title="Rename clip" size="sm">
-        <TextInput
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") confirmRename();
-          }}
-          data-autofocus
-          mb="md"
-        />
-        <Group justify="flex-end">
-          <Button variant="default" onClick={closeRename}>
-            Cancel
-          </Button>
-          <Button onClick={confirmRename} disabled={!renameValue.trim()}>
-            Rename
-          </Button>
-        </Group>
-      </Modal>
+      <RenameClipModal
+        opened={renameOpen}
+        value={renameValue}
+        onChange={setRenameValue}
+        onClose={closeRename}
+        onConfirm={confirmRename}
+      />
 
       <Text
         size="xs"

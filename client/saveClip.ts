@@ -8,8 +8,17 @@ const MIME_TO_EXT: Record<string, string> = {
   "audio/ogg": "ogg",
 };
 
+type LameMp3Encoder = {
+  encodeBuffer(samples: Int16Array): Uint8Array;
+  flush(): Uint8Array;
+};
+
+function createEncoder(sampleRate: number, bitrateKbps: number): LameMp3Encoder {
+  return new Mp3Encoder(1, sampleRate, bitrateKbps) as unknown as LameMp3Encoder;
+}
+
 function mimeToExt(mimeType: string): string {
-  const base = mimeType.split(";")[0].trim();
+  const base = mimeType.split(";")[0]?.trim() ?? "";
   return MIME_TO_EXT[base] ?? "audio";
 }
 
@@ -19,62 +28,90 @@ function triggerDownload(blob: Blob, filename: string) {
   a.href = url;
   a.download = filename;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 60_000);
 }
 
 function floatToInt16(float32: Float32Array): Int16Array {
   const int16 = new Int16Array(float32.length);
   for (let i = 0; i < float32.length; i++) {
-    const s = Math.max(-1, Math.min(1, float32[i]));
+    const s = Math.max(-1, Math.min(1, float32[i] ?? 0));
     int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
   return int16;
 }
 
-async function encodeToMp3(blob: Blob): Promise<Blob> {
+async function decodeToMonoSamples(
+  blob: Blob,
+): Promise<{ samples: Int16Array; sampleRate: number }> {
   const arrayBuffer = await blob.arrayBuffer();
   const audioCtx = new AudioContext();
-  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-  await audioCtx.close();
+  try {
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    const channelCount = audioBuffer.numberOfChannels;
+    const length = audioBuffer.length;
+    const mono = new Float32Array(length);
+    for (let c = 0; c < channelCount; c++) {
+      const channel = audioBuffer.getChannelData(c);
+      for (let i = 0; i < length; i++) {
+        mono[i] += channel[i] ?? 0;
+      }
+    }
+    if (channelCount > 1) {
+      const inv = 1 / channelCount;
+      for (let i = 0; i < length; i++) mono[i] *= inv;
+    }
+    return { samples: floatToInt16(mono), sampleRate: audioBuffer.sampleRate };
+  } finally {
+    await audioCtx.close();
+  }
+}
 
-  // Mix down to mono: average all channels
-  const channelCount = audioBuffer.numberOfChannels;
-  const length = audioBuffer.length;
-  const mono = new Float32Array(length);
-  for (let c = 0; c < channelCount; c++) {
-    const channel = audioBuffer.getChannelData(c);
-    for (let i = 0; i < length; i++) {
-      mono[i] = mono[i] + channel[i] / channelCount;
+const yieldToUi = () => new Promise<void>((r) => setTimeout(r, 0));
+
+async function encodeToMp3(
+  samples: Int16Array,
+  sampleRate: number,
+  onProgress?: (frac: number) => void,
+): Promise<Blob> {
+  const encoder = createEncoder(sampleRate, MP3_BITRATE_KBPS);
+  const chunks: Uint8Array[] = [];
+  const FRAME = 1152;
+  const YIELD_EVERY = FRAME * 200;
+  const total = samples.length;
+
+  for (let i = 0; i < total; i += FRAME) {
+    const chunk = samples.subarray(i, i + FRAME);
+    const encoded = encoder.encodeBuffer(chunk);
+    if (encoded.length > 0) chunks.push(encoded);
+    if (i % YIELD_EVERY === 0) {
+      onProgress?.(i / total);
+      await yieldToUi();
     }
   }
 
-  const samples = floatToInt16(mono);
-  const encoder = new Mp3Encoder(1, audioBuffer.sampleRate, MP3_BITRATE_KBPS);
-  const mp3Chunks: Uint8Array[] = [];
-  const FRAME = 1152;
+  const flushed = encoder.flush();
+  if (flushed.length > 0) chunks.push(flushed);
+  onProgress?.(1);
 
-  for (let i = 0; i < samples.length; i += FRAME) {
-    const chunk = samples.subarray(i, i + FRAME);
-    const encoded = encoder.encodeBuffer(chunk) as unknown as Uint8Array;
-    if (encoded.length > 0) mp3Chunks.push(encoded);
-  }
-
-  const flushed = encoder.flush() as unknown as Uint8Array;
-  if (flushed.length > 0) mp3Chunks.push(flushed);
-
-  return new Blob(mp3Chunks as BlobPart[], { type: "audio/mpeg" });
+  return new Blob(chunks as BlobPart[], { type: "audio/mpeg" });
 }
 
-export async function saveClip(clip: Clip, format: "original" | "mp3") {
+export async function saveClip(
+  clip: Clip,
+  format: "original" | "mp3",
+  onProgress?: (frac: number) => void,
+) {
+  const response = await fetch(clip.url);
+  const sourceBlob = await response.blob();
+
   if (format === "original") {
-    const response = await fetch(clip.url);
-    const blob = await response.blob();
-    triggerDownload(blob, `${clip.name}.${mimeToExt(clip.mimeType)}`);
+    triggerDownload(sourceBlob, `${clip.name}.${mimeToExt(clip.mimeType)}`);
     return;
   }
 
-  const response = await fetch(clip.url);
-  const sourceBlob = await response.blob();
-  const mp3Blob = await encodeToMp3(sourceBlob);
+  const { samples, sampleRate } = await decodeToMonoSamples(sourceBlob);
+  const mp3Blob = await encodeToMp3(samples, sampleRate, onProgress);
   triggerDownload(mp3Blob, `${clip.name}.mp3`);
 }

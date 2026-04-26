@@ -18,7 +18,8 @@ export function useAudioVisualizer(
     if (!ctx) return;
 
     const drawFlatLine = () => {
-      const { width, height } = canvas;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
       ctx.clearRect(0, 0, width, height);
       ctx.lineWidth = 2;
       ctx.strokeStyle = colorRef.current;
@@ -45,14 +46,17 @@ export function useAudioVisualizer(
     audioCtx.createMediaStreamSource(stream).connect(analyser);
 
     const dataArray = new Uint8Array(analyser.fftSize);
-    let rafId: number;
+    let rafId = 0;
+    let cancelled = false;
 
     const draw = () => {
+      if (cancelled) return;
       rafId = requestAnimationFrame(draw);
       if (pausedRef.current) return;
-      const { width, height } = canvas;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
 
-      analyser.getByteTimeDomainData(dataArray);
+      analyser.getByteTimeDomainData(dataArray as unknown as Uint8Array<ArrayBuffer>);
 
       ctx.clearRect(0, 0, width, height);
       ctx.lineWidth = 2;
@@ -62,7 +66,7 @@ export function useAudioVisualizer(
       const sliceWidth = width / analyser.fftSize;
       let x = 0;
       for (let i = 0; i < analyser.fftSize; i++) {
-        const v = dataArray[i] / 128.0;
+        const v = (dataArray[i] ?? 128) / 128.0;
         const y = (v * height) / 2;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
@@ -75,9 +79,11 @@ export function useAudioVisualizer(
     draw();
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(rafId);
-      audioCtx.close();
-      drawFlatLine();
+      audioCtx.close().then(() => {
+        drawFlatLine();
+      });
     };
-  }, [source]); // color/paused read via refs; canvasRef stable
+  }, [source, canvasRef]);
 }

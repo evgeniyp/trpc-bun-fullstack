@@ -1,22 +1,15 @@
 import "@mantine/core/styles.css";
 
 import { Badge, Center, MantineProvider, Stack, Title } from "@mantine/core";
-import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AudioRecorder } from "./AudioRecorder";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
 import { useConnection } from "./useConnection";
 
 function ConnectionBadge() {
   const online = useConnection();
-
-  useEffect(() => {
-    if (online) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [online]);
+  useBeforeUnloadGuard(!online);
 
   return (
     <Badge
@@ -36,7 +29,9 @@ function App() {
       <Center h="100vh">
         <Stack align="center" gap="xl">
           <Title order={1}>Audio Recorder</Title>
-          <AudioRecorder />
+          <ErrorBoundary>
+            <AudioRecorder />
+          </ErrorBoundary>
         </Stack>
       </Center>
     </>
@@ -46,6 +41,8 @@ function App() {
 const root = createRoot(document.getElementById("root") as HTMLElement);
 root.render(
   <MantineProvider defaultColorScheme="dark">
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </MantineProvider>,
 );
