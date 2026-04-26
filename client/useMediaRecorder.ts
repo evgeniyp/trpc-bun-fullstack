@@ -6,6 +6,7 @@ export type Clip = {
   url: string;
   name: string;
   size: number;
+  mimeType: string;
 };
 
 export function useMediaRecorder(stream: MediaStream | null) {
@@ -38,7 +39,7 @@ export function useMediaRecorder(stream: MediaStream | null) {
       const url = URL.createObjectURL(blob);
       setClips((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), url, name: "Unnamed clip", size: blob.size },
+        { id: crypto.randomUUID(), url, name: "Unnamed clip", size: blob.size, mimeType: recorder.mimeType },
       ]);
       setIsRecording(false);
       setIsPaused(false);

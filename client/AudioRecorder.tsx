@@ -1,11 +1,23 @@
-import { Button, Group, Modal, Stack, Text, TextInput } from "@mantine/core";
+import { Button, Group, Menu, Modal, Stack, Text, TextInput } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useRef, useState } from "react";
 import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
+import { saveClip } from "./saveClip";
+import { formatDuration, useRecordingTimer } from "./useRecordingTimer";
 import { Waveform } from "./Waveform";
-import { MEMORY_BUDGET_BYTES } from "./audioConfig";
+import { MEMORY_BUDGET_BYTES, RECORDING_BYTES_PER_SEC } from "./audioConfig";
 import { useAudioStream } from "./useAudioStream";
 import { useMediaRecorder } from "./useMediaRecorder";
+
+function mimeToLabel(mimeType: string): string {
+  const base = mimeType.split(";")[0].trim();
+  const labels: Record<string, string> = {
+    "audio/webm": "WebM",
+    "audio/mp4": "M4A",
+    "audio/ogg": "OGG",
+  };
+  return labels[base] ?? base;
+}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -62,6 +74,7 @@ export function AudioRecorder() {
   };
 
   useBeforeUnloadGuard(isRecording || clips.length > 0);
+  const elapsed = useRecordingTimer(isRecording, isPaused);
 
   const handleRecord = () => {
     audioRefs.current.get(playingId!)?.pause();
@@ -72,6 +85,7 @@ export function AudioRecorder() {
   if (!stream) return <Text c="dimmed">Requesting microphone…</Text>;
 
   const usedPct = (usedBytes / MEMORY_BUDGET_BYTES) * 100;
+  const remainingMs = ((MEMORY_BUDGET_BYTES - usedBytes) / RECORDING_BYTES_PER_SEC) * 1000;
   const pendingDeleteClip = clips.find((c) => c.id === pendingDeleteId);
   const playingElement = playingId ? (audioRefs.current.get(playingId) ?? null) : null;
   const visualizerSource = isRecording ? stream : playingElement;
@@ -92,6 +106,7 @@ export function AudioRecorder() {
               }}
               src={clip.url}
               controls
+              controlsList="nodownload"
               onPlay={() => { setPlayingId(clip.id); }}
               onPause={() => { setPlayingId(null); }}
               onEnded={() => { setPlayingId(null); }}
@@ -101,6 +116,17 @@ export function AudioRecorder() {
             <Button size="xs" color="blue" onClick={() => requestRename(clip.id, clip.name)}>
               Rename
             </Button>
+            <Menu position="bottom-end">
+              <Menu.Target>
+                <Button size="xs" color="green">Save</Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item onClick={() => saveClip(clip, "original")}>
+                  Original ({mimeToLabel(clip.mimeType)})
+                </Menu.Item>
+                <Menu.Item onClick={() => saveClip(clip, "mp3")}>MP3</Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
             <Button size="xs" color="red" onClick={() => requestDelete(clip.id)}>
               Delete
             </Button>
@@ -118,6 +144,11 @@ export function AudioRecorder() {
         <Button onClick={stop} disabled={!isRecording}>
           Stop
         </Button>
+        {isRecording && (
+          <Text c={isPaused ? "dimmed" : "red"} ff="monospace">
+            {formatDuration(elapsed)}
+          </Text>
+        )}
       </Group>
 
       <Modal opened={deleteOpen} onClose={closeDelete} title="Delete clip" size="sm">
@@ -149,7 +180,7 @@ export function AudioRecorder() {
         c={usedPct > 80 ? "red" : "dimmed"}
         style={{ position: "fixed", bottom: 8, right: 12 }}
       >
-        {formatBytes(usedBytes)} / {formatBytes(MEMORY_BUDGET_BYTES)} ({usedPct.toFixed(1)}%)
+        {formatBytes(usedBytes)} / {formatBytes(MEMORY_BUDGET_BYTES)} ({usedPct.toFixed(1)}%) — ~{formatDuration(remainingMs)} left
       </Text>
     </Stack>
   );

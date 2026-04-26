@@ -16,6 +16,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "@mantine/core": "^9.0.2",
     "@mantine/hooks": "^9.0.2",
     "react": "^19.2.5",
