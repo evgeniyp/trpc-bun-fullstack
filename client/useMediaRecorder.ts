@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { RECORDER_OPTIONS } from "./audioConfig";
+import { RECORDER_OPTIONS, RECORDING_TIMESLICE_MS } from "./audioConfig";
 
 export type Clip = {
   id: string;
   url: string;
   name: string;
+  size: number;
 };
 
 export function useMediaRecorder(stream: MediaStream | null) {
@@ -13,6 +14,7 @@ export function useMediaRecorder(stream: MediaStream | null) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [clips, setClips] = useState<Clip[]>([]);
+  const [usedBytes, setUsedBytes] = useState(0);
 
   useEffect(() => {
     if (!stream) return;
@@ -23,15 +25,12 @@ export function useMediaRecorder(stream: MediaStream | null) {
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) {
         chunksRef.current.push(e.data);
+        setUsedBytes((n) => n + e.data.size);
       }
     };
 
-    recorder.onpause = () => {
-      setIsPaused(true);
-    };
-    recorder.onresume = () => {
-      setIsPaused(false);
-    };
+    recorder.onpause = () => { setIsPaused(true); };
+    recorder.onresume = () => { setIsPaused(false); };
 
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
@@ -39,7 +38,7 @@ export function useMediaRecorder(stream: MediaStream | null) {
       const url = URL.createObjectURL(blob);
       setClips((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), url, name: "Unnamed clip" },
+        { id: crypto.randomUUID(), url, name: "Unnamed clip", size: blob.size },
       ]);
       setIsRecording(false);
       setIsPaused(false);
@@ -57,17 +56,15 @@ export function useMediaRecorder(stream: MediaStream | null) {
   useEffect(() => {
     return () => {
       setClips((prev) => {
-        prev.forEach((c) => {
-          URL.revokeObjectURL(c.url);
-        });
-        return [];
+        prev.forEach((c) => { URL.revokeObjectURL(c.url); });
+        return prev;
       });
     };
   }, []);
 
   const start = () => {
     if (recorderRef.current?.state === "inactive") {
-      recorderRef.current.start();
+      recorderRef.current.start(RECORDING_TIMESLICE_MS);
       setIsRecording(true);
     }
   };
@@ -96,15 +93,14 @@ export function useMediaRecorder(stream: MediaStream | null) {
       const clip = prev.find((c) => c.id === id);
       if (clip) {
         URL.revokeObjectURL(clip.url);
+        setUsedBytes((n) => n - clip.size);
       }
       return prev.filter((c) => c.id !== id);
     });
   };
 
   const renameClip = (id: string, name: string) => {
-    setClips((prev) => {
-      return prev.map((c) => (c.id === id ? { ...c, name } : c));
-    });
+    setClips((prev) => prev.map((c) => (c.id === id ? { ...c, name } : c)));
   };
 
   return {
@@ -115,6 +111,7 @@ export function useMediaRecorder(stream: MediaStream | null) {
     isRecording,
     isPaused,
     clips,
+    usedBytes,
     deleteClip,
     renameClip,
   };

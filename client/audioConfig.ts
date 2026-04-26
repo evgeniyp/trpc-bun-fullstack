@@ -16,3 +16,10 @@ export const RECORDER_OPTIONS: MediaRecorderOptions = {
   ...(supportedMimeType ? { mimeType: supportedMimeType } : {}),
   audioBitsPerSecond: 32_000,
 };
+
+// Conservative per-tab RAM budget for all recorded audio blobs in memory.
+export const MEMORY_BUDGET_BYTES = 1_073_741_824; // 1 GB
+
+// How often MediaRecorder fires ondataavailable during recording.
+// Drives real-time usage updates; also determines chunk granularity.
+export const RECORDING_TIMESLICE_MS = 500;
