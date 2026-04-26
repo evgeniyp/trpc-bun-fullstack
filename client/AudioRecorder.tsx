@@ -86,7 +86,7 @@ export function AudioRecorder() {
 
   const usedPct = (usedBytes / MEMORY_BUDGET_BYTES) * 100;
   const isOverLimit = usedBytes >= MEMORY_BUDGET_BYTES;
-  const remainingMs = ((MEMORY_BUDGET_BYTES - usedBytes) / RECORDING_BYTES_PER_SEC) * 1000;
+  const remainingMs = Math.max(0, ((MEMORY_BUDGET_BYTES - usedBytes) / RECORDING_BYTES_PER_SEC) * 1000);
   const pendingDeleteClip = clips.find((c) => c.id === pendingDeleteId);
   const playingElement = playingId ? (audioRefs.current.get(playingId) ?? null) : null;
   const visualizerSource = isRecording ? stream : playingElement;
@@ -184,7 +184,7 @@ export function AudioRecorder() {
 
       <Text
         size="xs"
-        c={usedPct > 80 ? "red" : "dimmed"}
+        c={remainingMs < 60_000 ? "red" : "dimmed"}
         style={{ position: "fixed", bottom: 8, right: 12 }}
       >
         {formatBytes(usedBytes)} / {formatBytes(MEMORY_BUDGET_BYTES)} ({usedPct.toFixed(1)}%) — ~{formatDuration(remainingMs)} left

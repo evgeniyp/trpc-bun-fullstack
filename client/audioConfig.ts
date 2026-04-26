@@ -9,7 +9,9 @@ export const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
 
 // Preferred order: Opus/WebM (Chrome/Firefox) → MP4/AAC (Safari) → browser default.
 const VOICE_MIME_TYPES = ["audio/webm;codecs=opus", "audio/mp4"];
-const supportedMimeType = VOICE_MIME_TYPES.find((t) => MediaRecorder.isTypeSupported(t));
+const supportedMimeType = VOICE_MIME_TYPES.find((t) =>
+  MediaRecorder.isTypeSupported(t),
+);
 
 // 128 kbps source gives headroom when re-encoding to MP3; Opus/AAC at this rate is near-lossless for voice.
 export const RECORDING_BITRATE_BPS = 128_000;
