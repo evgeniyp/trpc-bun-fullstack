@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import { AUDIO_CONSTRAINTS } from "./audioConfig";
 
 const stopTracks = (s: MediaStream | null) => {
-  s?.getTracks().forEach((t) => { t.stop(); });
+  s?.getTracks().forEach((t) => {
+    t.stop();
+  });
 };
 
 export function useAudioStream() {
@@ -9,10 +12,10 @@ export function useAudioStream() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    let active = true;
+    let active = true; //
 
     navigator.mediaDevices
-      .getUserMedia({ audio: true })
+      .getUserMedia({ audio: AUDIO_CONSTRAINTS })
       .then((s) => {
         if (active) {
           setStream(s);
