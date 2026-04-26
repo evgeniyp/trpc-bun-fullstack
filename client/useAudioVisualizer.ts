@@ -79,5 +79,5 @@ export function useAudioVisualizer(
       audioCtx.close();
       drawFlatLine();
     };
-  }, [source, canvasRef.current]); // color/paused read via refs
+  }, [source]); // color/paused read via refs; canvasRef stable
 }

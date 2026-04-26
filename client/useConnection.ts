@@ -35,9 +35,7 @@ export function useConnection() {
     const markOffline = () => {
       setOnline(false);
       clearTimers();
-      try {
-        wsRef.current?.close();
-      } catch {}
+      wsRef.current?.close();
     };
 
     function connect() {

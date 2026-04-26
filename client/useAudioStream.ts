@@ -12,7 +12,7 @@ export function useAudioStream() {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    let active = true; //
+    let active = true;
 
     navigator.mediaDevices
       .getUserMedia({ audio: AUDIO_CONSTRAINTS })

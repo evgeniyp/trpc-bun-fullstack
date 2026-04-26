@@ -37,12 +37,13 @@ export function useMediaRecorder(stream: MediaStream | null) {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType });
       chunksRef.current = [];
       const url = URL.createObjectURL(blob);
+      urlsRef.current.add(url);
       setClips((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           url,
-          name: "Unnamed clip",
+          name: `Clip ${prev.length + 1}`,
           size: blob.size,
           mimeType: recorder.mimeType,
         },
@@ -55,6 +56,7 @@ export function useMediaRecorder(stream: MediaStream | null) {
       if (recorder.state !== "inactive") {
         recorder.stop();
       }
+      chunksRef.current = [];
       recorderRef.current = null;
     };
   }, [stream]);
@@ -66,15 +68,14 @@ export function useMediaRecorder(stream: MediaStream | null) {
     }
   }, [usedBytes]);
 
-  // Revoke all blob URLs on unmount
+  const urlsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
+    const urls = urlsRef.current;
     return () => {
-      setClips((prev) => {
-        prev.forEach((c) => {
-          URL.revokeObjectURL(c.url);
-        });
-        return prev;
+      urls.forEach((u) => {
+        URL.revokeObjectURL(u);
       });
+      urls.clear();
     };
   }, []);
 
@@ -105,14 +106,12 @@ export function useMediaRecorder(stream: MediaStream | null) {
   };
 
   const deleteClip = (id: string) => {
-    setClips((prev) => {
-      const clip = prev.find((c) => c.id === id);
-      if (clip) {
-        URL.revokeObjectURL(clip.url);
-        setUsedBytes((n) => n - clip.size);
-      }
-      return prev.filter((c) => c.id !== id);
-    });
+    const clip = clips.find((c) => c.id === id);
+    if (!clip) return;
+    URL.revokeObjectURL(clip.url);
+    urlsRef.current.delete(clip.url);
+    setUsedBytes((n) => n - clip.size);
+    setClips((prev) => prev.filter((c) => c.id !== id));
   };
 
   const renameClip = (id: string, name: string) => {

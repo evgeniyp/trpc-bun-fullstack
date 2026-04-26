@@ -19,7 +19,7 @@ function triggerDownload(blob: Blob, filename: string) {
   a.href = url;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 function floatToInt16(float32: Float32Array): Int16Array {
@@ -31,9 +31,9 @@ function floatToInt16(float32: Float32Array): Int16Array {
   return int16;
 }
 
-async function encodeToMp3(blob: Blob, sampleRate: number): Promise<Blob> {
+async function encodeToMp3(blob: Blob): Promise<Blob> {
   const arrayBuffer = await blob.arrayBuffer();
-  const audioCtx = new AudioContext({ sampleRate });
+  const audioCtx = new AudioContext();
   const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
   await audioCtx.close();
 
@@ -75,6 +75,6 @@ export async function saveClip(clip: Clip, format: "original" | "mp3") {
 
   const response = await fetch(clip.url);
   const sourceBlob = await response.blob();
-  const mp3Blob = await encodeToMp3(sourceBlob, 44100);
+  const mp3Blob = await encodeToMp3(sourceBlob);
   triggerDownload(mp3Blob, `${clip.name}.mp3`);
 }

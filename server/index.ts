@@ -24,7 +24,9 @@ Bun.serve({
 
 console.log("Server running on http://localhost:3000");
 
-setInterval(() => {
-  const mem = memoryUsage();
-  console.log(`Memory usage: ${(mem.current / 1024 / 1024).toFixed(2)}`);
-}, 10000);
+if (isDev) {
+  setInterval(() => {
+    const mem = memoryUsage();
+    console.log(`Memory usage: ${(mem.current / 1024 / 1024).toFixed(2)}`);
+  }, 10000);
+}

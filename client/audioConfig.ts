@@ -20,7 +20,7 @@ export const RECORDER_OPTIONS: MediaRecorderOptions = {
   audioBitsPerSecond: RECORDING_BITRATE_BPS,
 };
 
-// 64 kbps mono MP3 is transparent for voice; drop to 48 kbps to reduce file size.
+// 64 kbps mono MP3 is transparent for voice.
 export const MP3_BITRATE_KBPS = 64;
 
 // Memory budget sized for 4 hours at current bitrate: 4 * 3600 * RECORDING_BYTES_PER_SEC.
