@@ -1,6 +1,6 @@
 import { Mp3Encoder } from "@breezystack/lamejs";
-import { MP3_BITRATE_KBPS } from "./audioConfig";
-import type { Clip } from "./useMediaRecorder";
+import { MP3_BITRATE_KBPS } from "../consts/audioConfig";
+import type { Clip } from "../hooks/useMediaRecorder";
 
 const MIME_TO_EXT: Record<string, string> = {
   "audio/webm": "webm",

@@ -1,16 +1,16 @@
 import { Alert, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useCallback, useRef, useState } from "react";
-import { MEMORY_BUDGET_BYTES, RECORDING_BYTES_PER_SEC } from "./audioConfig";
-import { ClipList } from "./ClipList";
-import { DeleteClipModal } from "./DeleteClipModal";
-import { RecordControls } from "./RecordControls";
-import { RenameClipModal } from "./RenameClipModal";
-import { useAudioStream } from "./useAudioStream";
-import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
-import { useMediaRecorder } from "./useMediaRecorder";
-import { formatDuration, useRecordingTimer } from "./useRecordingTimer";
-import { Waveform } from "./Waveform";
+import { ClipList } from "./components/ClipList";
+import { DeleteClipModal } from "./components/DeleteClipModal";
+import { RecordControls } from "./components/RecordControls";
+import { RenameClipModal } from "./components/RenameClipModal";
+import { Waveform } from "./components/Waveform";
+import { MEMORY_BUDGET_BYTES, RECORDING_BYTES_PER_SEC } from "./consts/audioConfig";
+import { useAudioStream } from "./hooks/useAudioStream";
+import { useBeforeUnloadGuard } from "./hooks/useBeforeUnloadGuard";
+import { useMediaRecorder } from "./hooks/useMediaRecorder";
+import { formatDuration, useRecordingTimer } from "./hooks/useRecordingTimer";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;

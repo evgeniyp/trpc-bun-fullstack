@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { MEMORY_BUDGET_BYTES, RECORDER_OPTIONS, RECORDING_TIMESLICE_MS } from "./audioConfig";
+import {
+  MEMORY_BUDGET_BYTES,
+  RECORDER_OPTIONS,
+  RECORDING_TIMESLICE_MS,
+} from "../consts/audioConfig";
 
 export type Clip = {
   id: string;

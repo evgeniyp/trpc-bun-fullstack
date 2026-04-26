@@ -1,7 +1,7 @@
 import { Button, Group, Loader, Menu, Stack, Text } from "@mantine/core";
 import { memo, useCallback, useState } from "react";
-import { saveClip } from "./saveClip";
-import type { Clip } from "./useMediaRecorder";
+import type { Clip } from "../hooks/useMediaRecorder";
+import { saveClip } from "../utils/saveClip";
 
 function mimeToLabel(mimeType: string): string {
   const base = mimeType.split(";")[0]?.trim() ?? "";

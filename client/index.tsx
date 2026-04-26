@@ -3,9 +3,9 @@ import "@mantine/core/styles.css";
 import { Badge, Center, MantineProvider, Stack, Title } from "@mantine/core";
 import { createRoot } from "react-dom/client";
 import { AudioRecorder } from "./AudioRecorder";
-import { ErrorBoundary } from "./ErrorBoundary";
-import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
-import { useConnection } from "./useConnection";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useBeforeUnloadGuard } from "./hooks/useBeforeUnloadGuard";
+import { useConnection } from "./hooks/useConnection";
 
 function ConnectionBadge() {
   const online = useConnection();

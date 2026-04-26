@@ -1,6 +1,6 @@
 import { useMantineTheme } from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
-import { useAudioVisualizer } from "./useAudioVisualizer";
+import { useAudioVisualizer } from "../hooks/useAudioVisualizer";
 
 interface WaveformProps {
   source: MediaStream | HTMLAudioElement | null;

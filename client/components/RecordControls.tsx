@@ -1,5 +1,5 @@
 import { Button, Group, Text } from "@mantine/core";
-import { formatDuration } from "./useRecordingTimer";
+import { formatDuration } from "../hooks/useRecordingTimer";
 
 type Props = {
   isRecording: boolean;

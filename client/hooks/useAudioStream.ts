@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AUDIO_CONSTRAINTS } from "./audioConfig";
+import { AUDIO_CONSTRAINTS } from "../consts/audioConfig";
 
 const stopTracks = (s: MediaStream | null) => {
   s?.getTracks().forEach((t) => {
