@@ -1,5 +1,5 @@
 {
-  "name": "trpc-bun-fullstack",
+  "name": "via-health-coding-challenge",
   "private": true,
   "scripts": {
     "dev": "bun --watch run server/index.ts --dev",

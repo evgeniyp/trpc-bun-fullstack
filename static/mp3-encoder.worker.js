@@ -2,7 +2,8 @@ importScripts("/lame.min.js");
 
 const FRAME = 1152;
 
-self.onmessage = function (e) {
+self.onmessage = async function (e) {
+  await new Promise((resolve) => setTimeout(resolve, 3000));
   const { samples, sampleRate, bitrateKbps } = e.data;
   const encoder = new lamejs.Mp3Encoder(1, sampleRate, bitrateKbps);
   const chunks = [];

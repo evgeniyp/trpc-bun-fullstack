@@ -18,8 +18,8 @@ check: ## Lint + format + autofix (Biome)
 verify: ## CI gate: lint + types + build
 	bunx biome check && bunx tsc --noEmit && bun run build-fe
 
-up: ## docker compose up -d
+docker-up: ## docker compose up -d
 	docker compose up -d
 
-down: ## docker compose down
+docker-down: ## docker compose down
 	docker compose down

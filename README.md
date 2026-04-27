@@ -1,44 +1,63 @@
-# Bun Fullstack App (boilerplate)
+# Audio Recorder (Bun + React)
 
-Fullstack app with Bun, React, and Mantine UI.
+Browser-based voice recorder full stack app.
 
-## Stack
+## Prerequisites
 
-- [Bun](https://bun.sh) — runtime, bundler, package manager
-- [React](https://react.dev) — frontend
-- [Mantine](https://mantine.dev) — UI components, dark mode
-- [Biome](https://biomejs.dev) — linting and formatting (`bun run check`)
+[bun.js](https://bun.com/)
 
 ## Setup
 
 ```sh
-bun install
+make install
+make dev      # dev server with HMR on http://localhost:3000
 ```
 
-## Check (lint & fix)
+Run `make` (or `make help`) to list all targets.
 
-```sh
-bun check
+## Architecture
+
+Single Bun process serves both frontend and backend.
+
+Bun bundles `index.html` on the fly in dev (HMR) and serves it.
+
+Static assets (MP3 worker, LAME library, favicon) live in `static/` and are served via a fetch fallback.
+
+```
+server/index.ts         Bun.serve — API routes + index.html + static/
+client/index.tsx        React entry, MantineProvider, ErrorBoundary
+
+client/AudioRecorder    Top-level component wiring hooks + UI
+
+client/hooks/           useAudioStream, useMediaRecorder, useTranscribe,
+                        useAudioVisualizer, useRecordingTimer, useBeforeUnloadGuard
+client/components/      Waveform, ClipList, RecordControls, modals, TranscriptBox
+client/consts/          audioConfig — bitrate, mime selection, memory budget
+
+static/                 lame.min.js + mp3-encoder.worker.js (off-main-thread MP3)
 ```
 
-## Run
+## Sources
 
-Prod mode with hot reload, no HMR:
-```sh
-bun start
-```
+- I took the [MediaStream Recording API](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream_Recording_API) as an example of how to work with media in modern browsers
 
-Dev mode with hot reload and HMR:
-```sh
-bun dev
-```
+## Assumptions
 
-Serves frontend and backend on `http://localhost:3000`.
+- I didn't want depend on external libraries, so I kept the default mp3 player and replicated waveform render similar to MDN example.
 
-## Docker
+- I ask mic permission on page load, not when the actual recordings starts. This makes recording start process much more smooth for the user.
 
-```sh
-docker compose up
-```
+- I set up bitrates assuming we will record voice, not studio sound. Mono channel, browser recording bitrate is 128 Kbit, mp3 bitrate is 65 Kbit (saving to mp3 requires transcoding).
 
-Same hot-reload setup. Source is volume-mounted so edits on the host reflect immediately.
+- When saving to mp3 I use the separate worker process in order not to block the UI. It's served as a static script.
+
+- I added artificial delays (3 seconds) to transcribing and transcoding scripts in order to show transitional states.
+
+
+
+## Stack
+
+- [Bun](https://bun.sh) — runtime, bundler, package manager
+- [React 19](https://react.dev) + [Mantine](https://mantine.dev) — UI, dark mode default
+- [lamejs](https://github.com/zhuker/lamejs) — MP3 encoding in Web Worker
+- [Biome](https://biomejs.dev) — lint + format
