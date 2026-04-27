@@ -1,7 +1,9 @@
 import { Button, Group, Loader, Menu, Stack, Text } from "@mantine/core";
 import { memo, useCallback, useState } from "react";
 import type { Clip } from "../hooks/useMediaRecorder";
+import { useTranscribe } from "../hooks/useTranscribe";
 import { saveClip } from "../utils/saveClip";
+import { TranscriptBox } from "./TranscriptBox";
 
 function mimeToLabel(mimeType: string): string {
   const base = mimeType.split(";")[0]?.trim() ?? "";
@@ -35,6 +37,11 @@ const ClipRow = memo(function ClipRow({
   const [encoding, setEncoding] = useState<{ format: "original" | "mp3"; progress: number } | null>(
     null,
   );
+  const {
+    state: transcribe,
+    handle: handleTranscribe,
+    isActive: isTranscribing,
+  } = useTranscribe(clip.url);
 
   const handleSave = async (format: "original" | "mp3") => {
     setEncoding({ format, progress: 0 });
@@ -48,47 +55,64 @@ const ClipRow = memo(function ClipRow({
   };
 
   const isEncoding = encoding !== null;
+  const busy = isEncoding || isTranscribing;
   const pct = encoding ? Math.round(encoding.progress * 100) : 0;
 
   return (
-    <Group>
-      {/** biome-ignore lint/a11y/useMediaCaption: no captions unless this track is transcribed in BE */}
-      <audio
-        ref={setRef}
-        src={clip.url}
-        controls
-        controlsList="nodownload"
-        onPlay={onPlay}
-        onPause={onPause}
-        onEnded={onPause}
-        style={isRecording ? { pointerEvents: "none", opacity: 0.4 } : undefined}
-      />
-      <Text>{clip.name}</Text>
-      <Button size="xs" color="blue" onClick={onRename} disabled={isEncoding}>
-        Rename
-      </Button>
-      <Menu position="bottom-end" disabled={isEncoding}>
-        <Menu.Target>
-          <Button
-            size="xs"
-            color="green"
-            disabled={isEncoding}
-            leftSection={isEncoding ? <Loader size="xs" color="white" /> : undefined}
-          >
-            {isEncoding ? (encoding.format === "mp3" ? `Encoding ${pct}%` : "Saving…") : "Save"}
-          </Button>
-        </Menu.Target>
-        <Menu.Dropdown>
-          <Menu.Item onClick={() => handleSave("original")}>
-            Original ({mimeToLabel(clip.mimeType)})
-          </Menu.Item>
-          <Menu.Item onClick={() => handleSave("mp3")}>MP3</Menu.Item>
-        </Menu.Dropdown>
-      </Menu>
-      <Button size="xs" color="red" onClick={onDelete} disabled={isEncoding}>
-        Delete
-      </Button>
-    </Group>
+    <Stack gap={4}>
+      <Group>
+        {/** biome-ignore lint/a11y/useMediaCaption: mocked */}
+        <audio
+          ref={setRef}
+          src={clip.url}
+          controls
+          controlsList="nodownload"
+          onPlay={onPlay}
+          onPause={onPause}
+          onEnded={onPause}
+          style={isRecording ? { pointerEvents: "none", opacity: 0.4 } : undefined}
+        />
+        <Text>{clip.name}</Text>
+        <Button size="xs" color="blue" onClick={onRename} disabled={busy}>
+          Rename
+        </Button>
+        <Menu position="bottom-end" disabled={busy}>
+          <Menu.Target>
+            <Button
+              size="xs"
+              color="green"
+              disabled={busy}
+              leftSection={isEncoding ? <Loader size="xs" color="white" /> : undefined}
+            >
+              {isEncoding ? (encoding.format === "mp3" ? `${pct}%` : "Saving…") : "Save"}
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item onClick={() => handleSave("original")}>
+              Original ({mimeToLabel(clip.mimeType)})
+            </Menu.Item>
+            <Menu.Item onClick={() => handleSave("mp3")}>MP3</Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+        <Button
+          size="xs"
+          color="violet"
+          disabled={busy}
+          leftSection={isTranscribing ? <Loader size="xs" color="white" /> : undefined}
+          onClick={handleTranscribe}
+        >
+          {transcribe.status === "uploading"
+            ? `Uploading… ${Math.round(transcribe.progress * 100)}%`
+            : transcribe.status === "waiting"
+              ? "Processing…"
+              : "Transcribe"}
+        </Button>
+        <Button size="xs" color="red" onClick={onDelete} disabled={busy}>
+          Delete
+        </Button>
+      </Group>
+      <TranscriptBox state={transcribe} />
+    </Stack>
   );
 });
 

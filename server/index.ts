@@ -8,6 +8,7 @@ Bun.serve({
     "/": index,
     "/api/transcribe": {
       async POST(_req) {
+        await Bun.sleep(3000);
         return Response.json({ text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit." });
       },
     },
