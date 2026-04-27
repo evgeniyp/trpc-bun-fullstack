@@ -6,18 +6,22 @@ const isDev = process.argv.includes("--dev");
 Bun.serve({
   routes: {
     "/": index,
-  },
-  fetch(req, server) {
-    if (new URL(req.url).pathname === "/ws") {
-      if (server.upgrade(req)) return;
-      return new Response("Upgrade failed", { status: 400 });
-    }
-    return new Response("Not found", { status: 404 });
-  },
-  websocket: {
-    message(ws, msg) {
-      if (msg === "ping") ws.send("pong");
+    "/api/transcribe": {
+      async POST(_req) {
+        return Response.json({ text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit." });
+      },
     },
+    "/api/*": (_req) => {
+      return new Response("Not Implemented", { status: 501 });
+    },
+  },
+  async fetch(req) {
+    const url = new URL(req.url);
+    const file = Bun.file(`./static${url.pathname}`);
+    if (await file.exists()) {
+      return new Response(file);
+    }
+    return new Response("Not Found", { status: 404 });
   },
   development: isDev,
 });

@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "bun --watch run server/index.ts --dev",
     "start": "bun --watch run server/index.ts",
+    "build-fe": "bun run build-fe.ts",
     "check": "biome check --write --unsafe"
   },
   "devDependencies": {
@@ -16,7 +17,6 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@breezystack/lamejs": "^1.2.7",
     "@mantine/core": "^9.0.2",
     "@mantine/hooks": "^9.0.2",
     "react": "^19.2.5",

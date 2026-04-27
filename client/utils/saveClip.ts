@@ -1,4 +1,3 @@
-import { Mp3Encoder } from "@breezystack/lamejs";
 import { MP3_BITRATE_KBPS } from "../consts/audioConfig";
 import type { Clip } from "../hooks/useMediaRecorder";
 
@@ -7,15 +6,6 @@ const MIME_TO_EXT: Record<string, string> = {
   "audio/mp4": "m4a",
   "audio/ogg": "ogg",
 };
-
-type LameMp3Encoder = {
-  encodeBuffer(samples: Int16Array): Uint8Array;
-  flush(): Uint8Array;
-};
-
-function createEncoder(sampleRate: number, bitrateKbps: number): LameMp3Encoder {
-  return new Mp3Encoder(1, sampleRate, bitrateKbps) as unknown as LameMp3Encoder;
-}
 
 function mimeToExt(mimeType: string): string {
   const base = mimeType.split(";")[0]?.trim() ?? "";
@@ -68,34 +58,30 @@ async function decodeToMonoSamples(
   }
 }
 
-const yieldToUi = () => new Promise<void>((r) => setTimeout(r, 0));
-
-async function encodeToMp3(
+function encodeToMp3(
   samples: Int16Array,
   sampleRate: number,
   onProgress?: (frac: number) => void,
 ): Promise<Blob> {
-  const encoder = createEncoder(sampleRate, MP3_BITRATE_KBPS);
-  const chunks: Uint8Array[] = [];
-  const FRAME = 1152;
-  const YIELD_EVERY = FRAME * 200;
-  const total = samples.length;
+  return new Promise((resolve, reject) => {
+    const worker = new Worker("/mp3-encoder.worker.js");
 
-  for (let i = 0; i < total; i += FRAME) {
-    const chunk = samples.subarray(i, i + FRAME);
-    const encoded = encoder.encodeBuffer(chunk);
-    if (encoded.length > 0) chunks.push(encoded);
-    if (i % YIELD_EVERY === 0) {
-      onProgress?.(i / total);
-      await yieldToUi();
-    }
-  }
+    worker.onmessage = (e: MessageEvent<{ type: string; frac?: number; buffer?: ArrayBuffer }>) => {
+      if (e.data.type === "progress") {
+        onProgress?.(e.data.frac ?? 0);
+      } else if (e.data.type === "done") {
+        worker.terminate();
+        resolve(new Blob([e.data.buffer as ArrayBuffer], { type: "audio/mpeg" }));
+      }
+    };
 
-  const flushed = encoder.flush();
-  if (flushed.length > 0) chunks.push(flushed);
-  onProgress?.(1);
+    worker.onerror = (e) => {
+      worker.terminate();
+      reject(e);
+    };
 
-  return new Blob(chunks as BlobPart[], { type: "audio/mpeg" });
+    worker.postMessage({ samples, sampleRate, bitrateKbps: MP3_BITRATE_KBPS }, [samples.buffer]);
+  });
 }
 
 export async function saveClip(
